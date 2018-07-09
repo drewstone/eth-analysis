@@ -1,11 +1,14 @@
 import EventEmitter from 'events';
 import abi from 'human-standard-token-abi';
+import Web3 from 'web3';
+import EtherscanAPI from 'etherscan-api';
+import ethAddresses from './ethereumContractAddresses';
 
 export default class Poller extends EventEmitter {
-  constructor({ web3, ethAddresses, etherscanAPI }) {
+  constructor({ ETHERSCAN_API_KEY, INFURA_API_KEY }) {
     super();
-    this.web3 = web3;
-    this.etherscanAPI = etherscanAPI;
+    this.web3 = new Web3(new Web3.providers.HttpProvider(`https://mainnet.infura.io/${INFURA_API_KEY}`));
+    this.etherscanAPI = EtherscanAPI.init(ETHERSCAN_API_KEY);
     this.ethAddresses = ethAddresses;
     this.contractNames = Object.keys(this.ethAddresses);
   }
@@ -13,8 +16,9 @@ export default class Poller extends EventEmitter {
   _func(key, fromBlock, toBlock, currBlock, pollFunc) {
     return () => {
       pollFunc.bind(this)(key, fromBlock, toBlock)
-      .then(log => {
-        console.log(`lll | contract = ${key}, log = ${log}, from = ${fromBlock}, to = ${toBlock}`)
+      .then(logs => {
+        console.log(`lll | contract = ${key}, logs = ${logs.length}, from = ${fromBlock}, to = ${toBlock}`)
+        this.emit('web3_getLogs', { key: key, logs: logs });
         setTimeout(this._func(key, toBlock, toBlock + 1000, currBlock, pollFunc), this.contractNames.length * 1000);
       })
       .catch(err => {
@@ -50,7 +54,6 @@ export default class Poller extends EventEmitter {
       });
     });
   }
-
 
   pollWithWeb3() {
     this.etherscanAPI.proxy.eth_blockNumber()
