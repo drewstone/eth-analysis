@@ -1,13 +1,14 @@
 require('dotenv').config();
 import S3 from 'aws-sdk/clients/s3';
 import zlib from 'zlib';
+import fs from 'fs';
 import Poller from './poller';
 
 const s3 = new S3();
 
 process.env.AWS_BUCKET_NAMES.split(',').forEach(name => {
   var params = {
-    Bucket: name, 
+    Bucket: name,
     CreateBucketConfiguration: {
       LocationConstraint: "us-west-1"
     }
@@ -40,7 +41,7 @@ poller.on('web3_getLogs', (result) => {
         } else {
           storeBufferInS3({
             buffer: res,
-            bucket: 'the-baire-group-token-data',
+            bucket: 'the-baire-group-tokens',
             key: result.key,
             event: log.event,
             blockNumber: log.blockNumber,
@@ -56,8 +57,8 @@ function storeBufferInS3({ buffer, bucket, key, event, blockNumber, txHash }) {
   const prefix = `${key}-${event}-${blockNumber}-${txHash}`;
 
   var params = {
-    Body: buffer, 
-    Bucket: bucket, 
+    Body: buffer,
+    Bucket: bucket,
     Key: prefix
   };
 
@@ -66,7 +67,7 @@ function storeBufferInS3({ buffer, bucket, key, event, blockNumber, txHash }) {
     else     console.log(data);           // successful response
     /*
       data = {
-        ETag: "\"6805f2cfc46c0f04559748bb039d69ae\"", 
+        ETag: "\"6805f2cfc46c0f04559748bb039d69ae\"",
         VersionId: "tpf3zF08nBplQK1XLOefGskR7mGDwcDk"
     }
     */
