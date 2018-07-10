@@ -14,13 +14,16 @@ process.env.AWS_BUCKET_NAMES.split(',').forEach(name => {
   };
 
   s3.createBucket(params, function(err, data) {
-    if (err) console.log(err.stack); // an error occurred
-    else     console.log(data);           // successful response
-    /*
-      data = {
-        Location: "http://examplebucket.s3.amazonaws.com/"
-      }
-    */
+    if (process.env.DEBUG) {
+      if (err) console.log(err.stack); // an error occurred
+      else     console.log(data);           // successful response
+      /*
+        data = {
+          Location: "http://examplebucket.s3.amazonaws.com/"
+        }
+      */      
+    }
+
   });
 });
 
@@ -36,7 +39,7 @@ poller.on('web3_getLogs', (result) => {
     result.logs.forEach(log => {
       zlib.gzip(JSON.stringify(log), (err, res) => {
         if (err) {
-          console.error(`Error with GZIP: ${err}`);
+          if (process.env.DEBUG) console.error(`Error with GZIP: ${err}`);
         } else {
           storeBufferInS3({
             buffer: res,
@@ -62,14 +65,16 @@ function storeBufferInS3({ buffer, bucket, key, event, blockNumber, txHash }) {
   };
 
   s3.putObject(params, function(err, data) {
-    if (err) console.log(err.stack); // an error occurred
-    else     console.log(data);           // successful response
-    /*
-      data = {
-        ETag: "\"6805f2cfc46c0f04559748bb039d69ae\"", 
-        VersionId: "tpf3zF08nBplQK1XLOefGskR7mGDwcDk"
-    }
-    */
+    if (process.env.DEBUG) {
+      if (err) console.log(err.stack); // an error occurred
+      else     console.log(data);           // successful response      
+      /*
+        data = {
+          ETag: "\"6805f2cfc46c0f04559748bb039d69ae\"", 
+          VersionId: "tpf3zF08nBplQK1XLOefGskR7mGDwcDk"
+      }
+      */
+     }
   });
 }
 

@@ -17,12 +17,12 @@ export default class Poller extends EventEmitter {
     return () => {
       pollFunc.bind(this)(key, fromBlock, toBlock)
       .then(logs => {
-        console.log(`lll | contract = ${key}, logs = ${logs.length}, from = ${fromBlock}, to = ${toBlock}`)
+        if (process.env.DEBUG) console.log(`lll | contract = ${key}, logs = ${logs.length}, from = ${fromBlock}, to = ${toBlock}`)
         this.emit('web3_getLogs', { key: key, logs: logs });
         setTimeout(this._func(key, toBlock, toBlock + 1000, currBlock, pollFunc), this.contractNames.length * 1000);
       })
       .catch(err => {
-        console.log(`eee | contract = ${key}, err = ${err}, from = ${fromBlock}, to = ${toBlock}`)
+        if (process.env.DEBUG) console.log(`eee | contract = ${key}, err = ${err}, from = ${fromBlock}, to = ${toBlock}`)
         setTimeout(this._func(key, toBlock, toBlock + 1000, currBlock, pollFunc), this.contractNames.length * 1000);
       });
     }
