@@ -3,10 +3,9 @@ import EventEmitter from 'events';
 import abi from 'human-standard-token-abi';
 import Web3 from 'web3';
 import EtherscanAPI from 'etherscan-api';
-import ethAddresses from './addresses';
 
 export default class Poller extends EventEmitter {
-  constructor({ ETHERSCAN_API_KEY, INFURA_API_KEY, database }) {
+  constructor({ ETHERSCAN_API_KEY, INFURA_API_KEY, database, ethAddresses }) {
     super();
     this.web3 = new Web3(new Web3.providers.HttpProvider(`https://mainnet.infura.io/${INFURA_API_KEY}`));
     this.etherscanAPI = EtherscanAPI.init(ETHERSCAN_API_KEY);
@@ -15,8 +14,20 @@ export default class Poller extends EventEmitter {
     this.contracts = this._setupTokenContracts()
     this.db = database;
 
-    this.on('eth_getLogs', this.handlePolledResults);
-    this.on('end_of_poll', this.startLivePollingOnContract);
+    this.terminations = 0;
+    this.on('web3_getLogs', this.handlePolledResults);
+    this.on('end_of_poll', (key) => {
+      this.terminations += 1;
+
+      if (this.terminations == this.contractNames.length) {
+        console.log('-----------------------------------------');
+        console.log('\n\n\n');
+        console.log('ALL TOKENS FINISHED POLLING');
+        console.log('\n\n\n');
+        console.log('-----------------------------------------');
+        process.exit();
+      }
+    });
   }
 
   _refreshEthAddressesInfo() {
@@ -28,7 +39,7 @@ export default class Poller extends EventEmitter {
       .toArray()
       .then(res => ({ key, blockNumber: res[0].blockNumber }))
     })
-    .then(reduce((prev, curr) => (Object.assign({}, prev, { [curr.key]: curr.blockNumber })), {}));
+    .then(results => results.reduce((prev, curr) => (Object.assign({}, prev, { [curr.key]: curr.blockNumber })), {}));
   }
 
   _setupTokenContracts() {
@@ -40,7 +51,7 @@ export default class Poller extends EventEmitter {
   _func(key, fromBlock, toBlock, currBlock, pollFunc, time=1000) {
     return () => {
       if (fromBlock >= currBlock) {
-        this.emit('end_of_poll', { key, currBlock });
+        this.emit('end_of_poll', key);
         return;
       } else if (toBlock >= currBlock) {
         toBlock = currBlock
@@ -110,20 +121,10 @@ export default class Poller extends EventEmitter {
 
   handlePolledResults({ key, logs }) { 
     if (logs.length > 0) {
-      const collection = poller.db.collection(key);
-      collection.insertMany(logs, (err, res) => {
+      this.db.collection(key).insertMany(logs, (err, res) => {
         if (err) console.error(err);
         // else console.log(res);
       });
     }
-  }
-
-  startLivePolling() {
-    return this._refreshEthAddressesInfo()
-    .then(console.log);
-  }
-
-  startLivePollingOnContract({ key, currBlock }) {
-
   }
 }
