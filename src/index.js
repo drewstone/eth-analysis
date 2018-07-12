@@ -1,9 +1,13 @@
 require('dotenv').config();
 import { MongoClient } from 'mongodb';
 import assert from 'assert';
+import Web3 from 'web3';
+import EtherscanAPI from 'etherscan-api';
+
 import Poller from './poller';
 import Simulator from './simulator';
 import ethAddresses from './addresses';
+
 
 Array.min = function( array ){
   return Math.min.apply( Math, array );
@@ -30,10 +34,13 @@ MongoClient.connect(url, function(err, client) {
 
   const db = client.db(dbName);
 
+  const web3 = new Web3(new Web3.providers.HttpProvider(`https://mainnet.infura.io/${process.env.INFURA_API_KEY}`));
+  const etherscanAPI = EtherscanAPI.init(process.env.ETHERSCAN_API_KEY);
+
   if (program.poll) {
     const poller = new Poller({
-      ETHERSCAN_API_KEY: process.env.ETHERSCAN_API_KEY,
-      INFURA_API_KEY: process.env.INFURA_API_KEY,
+      web3: web3,
+      etherscanAPI: etherscanAPI,
       database: db,
       ethAddresses: ethAddresses,
     });
@@ -45,6 +52,8 @@ MongoClient.connect(url, function(err, client) {
       windowSize: 1000,
       stepSize: 10,
       ethAddresses: ethAddresses,
+      etherscanAPI: etherscanAPI,
+      web3: web3,
     });
 
     sim.start();

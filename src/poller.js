@@ -1,14 +1,12 @@
 import Promise from 'bluebird';
 import EventEmitter from 'events';
 import abi from 'human-standard-token-abi';
-import Web3 from 'web3';
-import EtherscanAPI from 'etherscan-api';
 
 export default class Poller extends EventEmitter {
-  constructor({ ETHERSCAN_API_KEY, INFURA_API_KEY, database, ethAddresses }) {
+  constructor({ web3, etherscanAPI, database, ethAddresses }) {
     super();
-    this.web3 = new Web3(new Web3.providers.HttpProvider(`https://mainnet.infura.io/${INFURA_API_KEY}`));
-    this.etherscanAPI = EtherscanAPI.init(ETHERSCAN_API_KEY);
+    this.web3 = web3;
+    this.etherscanAPI = etherscanAPI;
     this.ethAddresses = ethAddresses;
     this.contractNames = Object.keys(this.ethAddresses);
     this.contracts = this._setupTokenContracts()
@@ -20,11 +18,13 @@ export default class Poller extends EventEmitter {
       this.terminations += 1;
 
       if (this.terminations == this.contractNames.length) {
+        console.log('\n\n\n');
         console.log('-----------------------------------------');
         console.log('\n\n\n');
         console.log('ALL TOKENS FINISHED POLLING');
         console.log('\n\n\n');
         console.log('-----------------------------------------');
+        console.log('\n\n\n');
         process.exit();
       }
     });
