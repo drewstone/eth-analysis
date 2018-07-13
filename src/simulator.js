@@ -64,8 +64,8 @@ export default class Simulator extends EventEmitter {
   _getLogsInInterval(start, finish) {
     return this._getLogsOfToken({
       blockNumber: {
-        $lte: start,
-        $gte: finish,
+        $gte: start,
+        $lte: finish,
       }
     });
   }
@@ -74,61 +74,85 @@ export default class Simulator extends EventEmitter {
     return this._getLowestBlockByTokenAboveThreshold(threshold)
     .then(blockHeight => {
       this.currStep = blockHeight;
-      return this._getLogsOfToken({ blockNumber: blockHeight })
+      return this._getLogsInInterval(this.currStep, this.currStep + 10000);
     });
   } 
 
-  _storeState(state) {
-    return this.db.collection('STATS')
-    .update({ blockNumber: state.blockNumber }, state, {upsert: true})
-    .then(() => console.log(`Added new state object for block: ${state.blockNumber}`))
-    .then(() => state);
+  _storeState(states) {
+    return Promise.resolve(Object.keys(states)
+    .map(key => {
+      return {
+        blockNumber: Number(key),
+        data: this.collections.map(col => {
+          return {
+            key: col,
+            data: (states[key][col])
+              ? states[key][col]
+              : {
+                totalTransferAmount: 0,
+                from: {},
+                to: {},
+              }
+          }
+        })
+        .reduce((prev, curr) => (Object.assign({}, prev, { [curr.key]: curr.data })), {}),
+      }
+    }))
+    .then(states => {
+      return this.db.collection('STATS').insertMany(states)
+      .then(() => console.log(`Added new state objects for ${states.length} blocks`))
+      .then(() => states);
+    });
   }
 
   _computeStateForTokens(logs) {
-    const state = { blockNumber: this.currStep, data: {} };
-    Object.keys(logs).forEach(key => {
-      state.data = {...state.data,
-        [key]: {
-          totalTransferAmount: 0,
-          from: {},
-          to: {},
-        }
-      }
-    });
+    const states = {};
 
     Object.keys(logs).forEach(key => {
       logs[key].forEach(log => {
         if (log.event == 'Transfer') {
+          if (!states[log.blockNumber]) {
+            states[log.blockNumber] = {};
+          }
+
+          if (!states[log.blockNumber][key]) {
+            states[log.blockNumber] = {
+              ...states[log.blockNumber],
+              [key]: {
+                totalTransferAmount: 0,
+                from: {},
+                to: {},
+              },
+            };
+          }
+
           const sender = log.returnValues._from;
           const receiver = log.returnValues._to;
           const value = this.web3.utils.fromWei(log.returnValues._value, 'ether');
 
-          state.data = {
-            ...state.data,
-            [key]: {
-              totalTransferAmount: state.data[key].totalTransferAmount + value,
-              from: {
-                [sender]: {
-                  ...state.data[key].from[sender],
-                  value: (state.data[key].from[sender])
-                    ? state.data[key].from[sender].value + value
-                    : value,
-                  count: (state.data[key].from[sender])
-                    ? state.data[key].from[sender].count + 1
-                    : 1,
-                },
+          states[log.blockNumber][key] = {
+            ...states[log.blockNumber][key],
+            totalTransferAmount: states[log.blockNumber][key].totalTransferAmount + value,
+            from: {
+              [sender]: {
+                ...states[log.blockNumber][key].from[sender],
+                value: (states[log.blockNumber][key].from[sender])
+                  ? states[log.blockNumber][key].from[sender].value + value
+                  : value,
+                count: (states[log.blockNumber][key].from[sender])
+                  ? states[log.blockNumber][key].from[sender].count + 1
+                  : 1,
               },
-              to: {
-                [receiver]: {
-                  ...state.data[key].to[receiver],
-                  value: (state.data[key].to[receiver])
-                    ? state.data[key].to[receiver].value + value
-                    : value,
-                  count: (state.data[key].to[receiver])
-                    ? state.data[key].to[receiver].count + 1
-                    : 1,
-                },
+            },
+            to: {
+              [receiver]: {
+                ...states[log.blockNumber][key].to[receiver],
+                value: (states[log.blockNumber][key].to[receiver])
+                  ? states[log.blockNumber][key].to[receiver].value + value
+                  : value,
+                count: (states[log.blockNumber][key].to[receiver])
+                  ? states[log.blockNumber][key].to[receiver].count + 1
+                  : 1,
               },
             },
           };
@@ -136,15 +160,15 @@ export default class Simulator extends EventEmitter {
       });
     });
 
-    return state;
+    return states;
   }
 
-  start() {
+  start(jumpstart) {
     return Promise.all([this._getLowestBlockByToken(), this._getHighestBlockByToken()])
     .then(blockHeights => {
       this.minBlock = blockHeights[0];
       this.maxBlock = blockHeights[1];
-      this.currStep = this.minBlock;
+      this.currStep = (jumpstart) ? jumpstart : this.minBlock;
       return this.step()();
     });
   }
@@ -154,9 +178,9 @@ export default class Simulator extends EventEmitter {
       if (this.currStep == this.maxBlock) return;
 
       this._getLogsOfLowestBlockAtThreshold(this.currStep)
-      .then(logs => this._computeStateForTokens(logs))
+      .then(this._computeStateForTokens.bind(this))
       .then(this._storeState.bind(this))
-      .then(() => this.currStep += 1)
+      .then(() => this.currStep += 10000)
       .then(() => setTimeout(this.step(), 1000));
     }
   }

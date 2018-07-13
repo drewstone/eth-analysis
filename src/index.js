@@ -56,6 +56,6 @@ MongoClient.connect(url, function(err, client) {
       web3: web3,
     });
 
-    sim.start();
+    sim.start(3978632);
   }
 });
