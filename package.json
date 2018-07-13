@@ -4,16 +4,22 @@
     "aws-sdk": "^2.270.1",
     "bluebird": "^3.5.1",
     "commander": "^2.16.0",
+    "d3": "^5.5.0",
+    "d3-node": "^2.0.1",
     "dotenv": "^6.0.0",
     "etherscan-api": "^8.1.2",
+    "express": "^4.16.3",
     "human-standard-token-abi": "^1.0.2",
     "mongodb": "^3.1.1",
+    "p-iteration": "^1.1.7",
+    "svg2png": "^4.1.1",
     "ubjson": "^0.0.8",
     "web3": "^1.0.0-beta.34"
   },
   "scripts": {
-    "start-poll": "babel-node --presets es2015,stage-3 ./src/index.js --poll",
-    "start-sim": "babel-node --presets es2015,stage-3 ./src/index.js --simulator"
+    "start": "nodemon --exec babel-node --presets es2015,stage-3 ./src/app.js",
+    "run:poll": "babel-node --presets es2015,stage-3 ./scripts/index.js --poll",
+    "run:sim": "babel-node --presets es2015,stage-3 ./scripts/index.js --simulator"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
